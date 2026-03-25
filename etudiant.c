@@ -1,566 +1,481 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 
-#define NUM_SUBJECTS 3
+#define MAX_STUDENTS 200
+#define MAX_NAME_LEN 50
 
-/* ============================================================
-   STRUCT
-   ============================================================ */
-struct Student {
-    int   id;
-    char  fullName[50];
-    int   age;
-    float marks[NUM_SUBJECTS];  /* Math, Physics, CS */
-    float average;              /* auto-calculated from marks */
+/* --- STRUCTURES --- */
+
+// A simple struct to hold the 3 marks clearly
+struct Marks {
+    float math;
+    float physics;
+    float cs;
 };
 
-/* ============================================================
-   UTILITIES
-   ============================================================ */
-void separator() {
-    printf("==========================================\n");
-}
+// The main Student struct containing the Marks struct
+struct Student {
+    int id;
+    char fullName[MAX_NAME_LEN];
+    int age;
+    struct Marks marks;
+    float average;
+};
 
-void pressEnter() {
-    printf("\n[Press Enter to continue...]");
-    char c;
+/* --- HELPER FUNCTIONS --- */
+
+// Clears the input buffer (prevents skipping inputs)
+void clearInput() {
+    int c;
     while ((c = getchar()) != '\n' && c != EOF);
-    getchar();}
-float calcAverage(float marks[]) {
-    float sum = 0;
-    for (int i = 0; i < NUM_SUBJECTS; i++)
-        sum += marks[i];
-    return sum / NUM_SUBJECTS;
 }
 
-int idExists(int id, struct Student *list, int count) {
-    for (int i = 0; i < count; i++)
-        if (list[i].id == id) return 1;
-    return 0;
+// Waits for user to press Enter
+void waitEnter() {
+    printf("\n[Press Enter to continue...]");
+    clearInput();
 }
 
-int findById(struct Student *list, int count, int id) {
-    for (int i = 0; i < count; i++)
-        if (list[i].id == id) return i;
+// Calculates average from the nested struct
+float calculateAverage(struct Marks m) {
+    return (m.math + m.physics + m.cs) / 3.0;
+}
+
+// Checks if an ID already exists in the list
+int isIdTaken(int id, struct Student list[], int count) {
+    for (int i = 0; i < count; i++) {
+        if (list[i].id == id) {
+            return 1; // True, ID exists
+        }
+    }
+    return 0; // False, ID is free
+}
+
+// Finds the index of a student by ID. Returns -1 if not found.
+int findStudentIndex(struct Student list[], int count, int id) {
+    for (int i = 0; i < count; i++) {
+        if (list[i].id == id) {
+            return i;
+        }
+    }
     return -1;
 }
 
+// Swaps two students (used for sorting)
 void swapStudents(struct Student *a, struct Student *b) {
-    struct Student tmp = *a;
+    struct Student temp = *a;
     *a = *b;
-    *b = tmp;
+    *b = temp;
 }
 
-/* ============================================================
-   INPUT
-   ============================================================ */
-char *subjects[NUM_SUBJECTS] = {"Math", "Physics", "CS"};
+/* --- INPUT VALIDATION --- */
 
-void inputStudent(struct Student *s, struct Student *list, int count) {
-    printf("ID           : ");
-    scanf("%d", &s->id);
-    while (idExists(s->id, list, count)) {
-        printf("  ! ID already used, enter a unique ID : ");
-        scanf("%d", &s->id);
-    }
-
-    printf("Full name    : ");
-    scanf(" %49[^\n]", s->fullName);
-
-    printf("Age          : ");
-    scanf("%d", &s->age);
-    while (s->age < 5 || s->age > 100) {
-        printf("  ! Invalid age (5-100) : ");
-        scanf("%d", &s->age);
-    }
-
-    for (int i = 0; i < NUM_SUBJECTS; i++) {
-        printf("%-8s mark : ", subjects[i]);
-        scanf("%f", &s->marks[i]);
-        while (s->marks[i] < 0 || s->marks[i] > 20) {
-            printf("  ! Invalid mark (0-20) : ");
-            scanf("%f", &s->marks[i]);
+// Checks if name contains only valid characters
+int isValidName(char *name) {
+    if (name[0] == '\0') return 0;
+    
+    for (int i = 0; name[i] != '\0'; i++) {
+        char c = name[i];
+        // Allow letters, spaces, hyphens, and apostrophes
+        if (!isalpha(c) && c != ' ' && c != '-' && c != '\'') {
+            return 0;
         }
     }
-
-    s->average = calcAverage(s->marks);
+    return 1;
 }
 
-void askCount(int *n) {
-    do {
-        printf("Number of students : ");
-        scanf("%d", n);
-    } while (*n <= 0);
-}
+// Gets a valid name from user
+void getName(char *prompt, char *buffer) {
+    while (1) {
+        printf("%s", prompt);
+        fgets(buffer, MAX_NAME_LEN, stdin);
+        
+        // Remove newline character
+        int len = strlen(buffer);
+        if (len > 0 && buffer[len-1] == '\n') {
+            buffer[len-1] = '\0';
+        }
 
-void fillList(int n, struct Student *list) {
-    for (int i = 0; i < n; i++) {
-        printf("\n--- Student %d ---\n", i + 1);
-        inputStudent(&list[i], list, i);
+        if (isValidName(buffer)) {
+            return; // Valid name
+        }
+        printf("  ! Invalid name. Use letters only.\n");
     }
 }
 
-/* ============================================================
-   DISPLAY
-   ============================================================ */
-void printStudent(struct Student s) {
-    printf("  ID       : %d\n", s.id);
-    printf("  Name     : %s\n", s.fullName);
-    printf("  Age      : %d\n", s.age);
-    for (int i = 0; i < NUM_SUBJECTS; i++)
-        printf("  %-8s : %.2f\n", subjects[i], s.marks[i]);
-    printf("  Average  : %.2f  %s\n", s.average, s.average >= 10 ? "[PASS]" : "[FAIL]");
-    printf("------------------------------------------\n");
+// Gets a valid integer from user
+int getInt(char *prompt) {
+    int value;
+    while (1) {
+        printf("%s", prompt);
+        if (scanf("%d", &value) == 1) {
+            clearInput();
+            return value;
+        }
+        printf("  ! Please enter a whole number.\n");
+        clearInput();
+    }
 }
 
-void printAll(int n, struct Student *list) {
-    separator();
-    printf("   STUDENT LIST (%d)\n", n);
-    separator();
-    for (int i = 0; i < n; i++) {
-        printf("Student %d:\n", i + 1);
+// Gets a valid float (decimal) from user
+float getFloat(char *prompt) {
+    float value;
+    while (1) {
+        printf("%s", prompt);
+        if (scanf("%f", &value) == 1) {
+            clearInput();
+            return value;
+        }
+        printf("  ! Please enter a number.\n");
+        clearInput();
+    }
+}
+
+/* --- CORE FEATURES --- */
+
+// Add one student manually
+void addOneStudent(struct Student *s, struct Student list[], int currentCount) {
+    // 1. Get Unique ID
+    while (1) {
+        s->id = getInt("Enter ID: ");
+        if (!isIdTaken(s->id, list, currentCount)) {
+            break;
+        }
+        printf("  ! ID %d already exists. Try again.\n", s->id);
+    }
+
+    // 2. Get Name
+    getName("Enter Full Name: ", s->fullName);
+
+    // 3. Get Age (5 to 100)
+    while (1) {
+        s->age = getInt("Enter Age: ");
+        if (s->age >= 5 && s->age <= 100) {
+            break;
+        }
+        printf("  ! Age must be between 5 and 100.\n");
+    }
+
+    // 4. Get Marks (0 to 20) using the nested struct
+    printf("Enter Marks (0-20):\n");
+    
+    s->marks.math = getFloat("  Math: ");
+    s->marks.physics = getFloat("  Physics: ");
+    s->marks.cs = getFloat("  CS: ");
+
+    // Validate marks range
+    while (s->marks.math < 0 || s->marks.math > 20 ||
+           s->marks.physics < 0 || s->marks.physics > 20 ||
+           s->marks.cs < 0 || s->marks.cs > 20) {
+        printf("  ! Marks must be between 0 and 20.\n");
+        s->marks.math = getFloat("  Math: ");
+        s->marks.physics = getFloat("  Physics: ");
+        s->marks.cs = getFloat("  CS: ");
+    }
+
+    // 5. Calculate Average
+    s->average = calculateAverage(s->marks);
+}
+
+// Display one student details
+void printStudent(struct Student s) {
+    printf("----------------------------\n");
+    printf("ID: %d\n", s.id);
+    printf("Name: %s\n", s.fullName);
+    printf("Age: %d\n", s.age);
+    printf("Marks -> Math: %.2f, Physics: %.2f, CS: %.2f\n", 
+           s.marks.math, s.marks.physics, s.marks.cs);
+    printf("Average: %.2f %s\n", s.average, s.average >= 10 ? "[PASS]" : "[FAIL]");
+}
+
+// Display all students
+void showAll(int count, struct Student list[]) {
+    if (count == 0) {
+        printf("No students in the list.\n");
+        return;
+    }
+    printf("\n=== STUDENT LIST (%d) ===\n", count);
+    for (int i = 0; i < count; i++) {
+        printf("\n[Student %d]\n", i + 1);
         printStudent(list[i]);
     }
 }
 
-void printByOrder(int n, struct Student *list) {
-    separator();
-    printf("   STUDENTS BY ENTRY ORDER\n");
-    separator();
-    for (int i = 0; i < n; i++)
-        printf("[%d] %-20s  ID:%-4d  Age:%-3d  Avg:%.2f  %s\n",
-               i + 1, list[i].fullName, list[i].id, list[i].age,
-               list[i].average, list[i].average >= 10 ? "[PASS]" : "[FAIL]");
+/* --- FILE OPERATIONS --- */
+
+// Load from file
+int loadFromFile(struct Student list[], int *count) {
+    char filename[100];
+    printf("Enter filename (e.g., data.txt): ");
+    fgets(filename, 100, stdin);
+    // Remove newline from filename
+    filename[strcspn(filename, "\n")] = 0;
+
+    // Add .txt if missing
+    if (strstr(filename, ".txt") == NULL) {
+        strcat(filename, ".txt");
+    }
+
+    FILE *file = fopen(filename, "r");
+    if (file == NULL) {
+        printf("  ! Could not open file '%s'.\n", filename);
+        return 0;
+    }
+
+    int loaded = 0;
+    // Read until end of file or list is full
+    while (!feof(file) && *count + loaded < MAX_STUDENTS) {
+        struct Student temp;
+        // Format: ID|Name|Age|Math|Physics|CS
+        int result = fscanf(file, "%d|%[^|]|%d|%f|%f|%f\n", 
+                            &temp.id, temp.fullName, &temp.age, 
+                            &temp.marks.math, &temp.marks.physics, &temp.marks.cs);
+
+        if (result == 6) {
+            // Check for duplicate ID before adding
+            if (!isIdTaken(temp.id, list, *count + loaded)) {
+                temp.average = calculateAverage(temp.marks);
+                list[*count + loaded] = temp;
+                loaded++;
+            }
+        } else {
+            char dummy[256];
+            fgets(dummy, 256, file);
+        }
+    }
+
+    fclose(file);
+    printf("  > Successfully loaded %d students.\n", loaded);
+    *count += loaded;
+    return loaded > 0;
 }
 
-/* ============================================================
-   SORT  (bubble sort)
-   ============================================================ */
-void sortById(int n, struct Student *list) {
-    for (int i = 0; i < n - 1; i++)
-        for (int j = 0; j < n - 1 - i; j++)
-            if (list[j].id > list[j+1].id)
+// Save to file
+void saveToFile(struct Student list[], int count) {
+    if (count == 0) {
+        printf("Nothing to save.\n");
+        return;
+    }
+
+    char filename[100];
+    printf("Enter filename to save: ");
+    fgets(filename, 100, stdin);
+    filename[strcspn(filename, "\n")] = 0;
+
+    if (strstr(filename, ".txt") == NULL) {
+        strcat(filename, ".txt");
+    }
+
+    FILE *file = fopen(filename, "w");
+    if (file == NULL) {
+        printf("  ! Could not create file.\n");
+        return;
+    }
+
+    for (int i = 0; i < count; i++) {
+        fprintf(file, "%d|%s|%d|%.2f|%.2f|%.2f\n", 
+                list[i].id, list[i].fullName, list[i].age,
+                list[i].marks.math, list[i].marks.physics, list[i].marks.cs);
+    }
+
+    fclose(file);
+    printf("  > Saved %d students to '%s'.\n", count, filename);
+}
+
+/* --- SORTING (Bubble Sort) --- */
+void sortById(int count, struct Student list[]) {
+    for (int i = 0; i < count - 1; i++) {
+        for (int j = 0; j < count - 1 - i; j++) {
+            if (list[j].id > list[j+1].id) {
                 swapStudents(&list[j], &list[j+1]);
+            }
+        }
+    }
     printf("Sorted by ID.\n");
-    printAll(n, list);
+    showAll(count, list);
 }
 
-void sortByName(int n, struct Student *list) {
-    for (int i = 0; i < n - 1; i++)
-        for (int j = 0; j < n - 1 - i; j++)
-            if (strcmp(list[j].fullName, list[j+1].fullName) > 0)
+void sortByAverage(int count, struct Student list[]) {
+    for (int i = 0; i < count - 1; i++) {
+        for (int j = 0; j < count - 1 - i; j++) {
+            if (list[j].average < list[j+1].average) { // Higher average first
                 swapStudents(&list[j], &list[j+1]);
-    printf("Sorted by name.\n");
-    printAll(n, list);
-}
-
-void sortByAge(int n, struct Student *list) {
-    for (int i = 0; i < n - 1; i++)
-        for (int j = 0; j < n - 1 - i; j++)
-            if (list[j].age > list[j+1].age)
-                swapStudents(&list[j], &list[j+1]);
-    printf("Sorted by age.\n");
-    printAll(n, list);
-}
-
-void sortByAverage(int n, struct Student *list) {
-    for (int i = 0; i < n - 1; i++)
-        for (int j = 0; j < n - 1 - i; j++)
-            if (list[j].average > list[j+1].average)
-                swapStudents(&list[j], &list[j+1]);
-    printf("Sorted by average.\n");
-    printAll(n, list);
-}
-
-/* ============================================================
-   SEARCH
-   ============================================================ */
-void searchById(int n, struct Student *list) {
-    int id;
-    printf("ID to search : ");
-    scanf("%d", &id);
-    int idx = findById(list, n, id);
-    if (idx == -1)
-        printf("No student with ID %d.\n", id);
-    else
-        printStudent(list[idx]);
-}
-
-void searchByName(int n, struct Student *list) {
-    char name[50];
-    printf("Name to search : ");
-    scanf(" %49[^\n]", name);
-    int found = 0;
-    for (int i = 0; i < n; i++) {
-        if (strstr(list[i].fullName, name)) {
-            printStudent(list[i]);
-            found = 1;
+            }
         }
     }
-    if (!found)
-        printf("No student named '%s'.\n", name);
+    printf("Sorted by Average.\n");
+    showAll(count, list);
 }
 
-void searchByAge(int n, struct Student *list) {
-    int age;
-    printf("Age to search : ");
-    scanf("%d", &age);
-    int found = 0;
-    for (int i = 0; i < n; i++) {
-        if (list[i].age == age) {
-            printStudent(list[i]);
-            found = 1;
+/* --- SEARCH --- */
+void searchById(int count, struct Student list[]) {
+    int id = getInt("Enter ID to search: ");
+    int index = findStudentIndex(list, count, id);
+
+    if (index == -1) {
+        printf("Student with ID %d not found.\n", id);
+    } else {
+        printStudent(list[index]);
+    }
+}
+
+/* --- STATISTICS --- */
+void showStats(int count, struct Student list[]) {
+    if (count == 0) {
+        printf("No data available.\n");
+        return;
+    }
+
+    float totalAvg = 0;
+    int passCount = 0;
+    int bestIndex = 0;
+
+    for (int i = 0; i < count; i++) {
+        totalAvg += list[i].average;
+        if (list[i].average >= 10) passCount++;
+        if (list[i].average > list[bestIndex].average) {
+            bestIndex = i;
         }
     }
-    if (!found)
-        printf("No student aged %d.\n", age);
+
+    printf("\n=== STATISTICS ===\n");
+    printf("Total Students: %d\n", count);
+    printf("Passed: %d | Failed: %d\n", passCount, count - passCount);
+    printf("Class Average: %.2f\n", totalAvg / count);
+    printf("Best Student: %s (Avg: %.2f)\n", list[bestIndex].fullName, list[bestIndex].average);
 }
 
-/* ============================================================
-   STATISTICS
-   ============================================================ */
-void printStats(int n, struct Student *list) {
-    float sumAge = 0, sumAvg = 0;
-    int oldest = 0, youngest = 0, best = 0, worst = 0, passed = 0;
+/* --- EDIT --- */
+void editStudent(int count, struct Student list[]) {
+    int id = getInt("Enter ID to edit: ");
+    int index = findStudentIndex(list, count, id);
 
-    for (int i = 0; i < n; i++) {
-        sumAge += list[i].age;
-        sumAvg += list[i].average;
-        if (list[i].age     > list[oldest].age)       oldest   = i;
-        if (list[i].age     < list[youngest].age)      youngest = i;
-        if (list[i].average > list[best].average)      best     = i;
-        if (list[i].average < list[worst].average)     worst    = i;
-        if (list[i].average >= 10) passed++;
+    if (index == -1) {
+        printf("Student not found.\n");
+        return;
     }
 
-    separator();
-    printf("   STATISTICS\n");
-    separator();
-    printf("Total students   : %d\n",       n);
-    printf("Passed / Failed  : %d / %d\n",  passed, n - passed);
-    printf("Average age      : %.2f\n",     sumAge / n);
-    printf("Oldest           : %s (%d)\n",  list[oldest].fullName,   list[oldest].age);
-    printf("Youngest         : %s (%d)\n",  list[youngest].fullName, list[youngest].age);
-    printf("Class average    : %.2f\n",     sumAvg / n);
-    printf("Best student     : %s (%.2f)\n",list[best].fullName,     list[best].average);
-    printf("Worst student    : %s (%.2f)\n",list[worst].fullName,    list[worst].average);
-    separator();
-}
+    printf("Editing student: %s\n", list[index].fullName);
+    
+    // Re-enter marks only (keeping ID and Name safe)
+    printf("Enter new marks (0-20):\n");
+    list[index].marks.math = getFloat("  Math: ");
+    list[index].marks.physics = getFloat("  Physics: ");
+    list[index].marks.cs = getFloat("  CS: ");
 
-/* ============================================================
-   FILTER
-   ============================================================ */
-void showAdults(int n, struct Student *list) {
-    printf("\n--- Adults (>= 18) ---\n");
-    int found = 0;
-    for (int i = 0; i < n; i++)
-        if (list[i].age >= 18) { printStudent(list[i]); found = 1; }
-    if (!found) printf("No adult students.\n");
-}
-
-void showMinors(int n, struct Student *list) {
-    printf("\n--- Minors (< 18) ---\n");
-    int found = 0;
-    for (int i = 0; i < n; i++)
-        if (list[i].age < 18) { printStudent(list[i]); found = 1; }
-    if (!found) printf("No minor students.\n");
-}
-
-void showOlderThan(int n, struct Student *list) {
-    int threshold;
-    printf("Minimum age : ");
-    scanf("%d", &threshold);
-    printf("\n--- Age > %d ---\n", threshold);
-    int found = 0;
-    for (int i = 0; i < n; i++)
-        if (list[i].age > threshold) { printStudent(list[i]); found = 1; }
-    if (!found) printf("No student older than %d.\n", threshold);
-}
-
-/* ============================================================
-   EDIT
-   ============================================================ */
-void editAge(int n, struct Student *list) {
-    int id;
-    printf("Student ID : ");
-    scanf("%d", &id);
-    int idx = findById(list, n, id);
-    if (idx == -1) { printf("ID not found.\n"); return; }
-    printf("New age : ");
-    scanf("%d", &list[idx].age);
-    while (list[idx].age < 5 || list[idx].age > 100) {
-        printf("  ! Invalid age (5-100) : ");
-        scanf("%d", &list[idx].age);
+    while (list[index].marks.math < 0 || list[index].marks.math > 20 ||
+           list[index].marks.physics < 0 || list[index].marks.physics > 20 ||
+           list[index].marks.cs < 0 || list[index].marks.cs > 20) {
+        printf("  ! Marks must be 0-20.\n");
+        list[index].marks.math = getFloat("  Math: ");
+        list[index].marks.physics = getFloat("  Physics: ");
+        list[index].marks.cs = getFloat("  CS: ");
     }
-    printf("Age updated.\n");
+
+    list[index].average = calculateAverage(list[index].marks);
+    printf("Student updated successfully.\n");
 }
 
-void editName(int n, struct Student *list) {
-    int id;
-    printf("Student ID : ");
-    scanf("%d", &id);
-    int idx = findById(list, n, id);
-    if (idx == -1) { printf("ID not found.\n"); return; }
-    printf("New name : ");
-    scanf(" %49[^\n]", list[idx].fullName);
-    printf("Name updated.\n");
-}
+/* --- DELETE --- */
+void deleteStudent(int *count, struct Student list[]) {
+    int id = getInt("Enter ID to delete: ");
+    int index = findStudentIndex(list, *count, id);
 
-void editMarks(int n, struct Student *list) {
-    int id;
-    printf("Student ID : ");
-    scanf("%d", &id);
-    int idx = findById(list, n, id);
-    if (idx == -1) { printf("ID not found.\n"); return; }
-    for (int i = 0; i < NUM_SUBJECTS; i++) {
-        printf("%-8s mark : ", subjects[i]);
-        scanf("%f", &list[idx].marks[i]);
-        while (list[idx].marks[i] < 0 || list[idx].marks[i] > 20) {
-            printf("  ! Invalid mark (0-20) : ");
-            scanf("%f", &list[idx].marks[i]);
-        }
+    if (index == -1) {
+        printf("Student not found.\n");
+        return;
     }
-    list[idx].average = calcAverage(list[idx].marks);
-    printf("Marks and average updated.\n");
-}
 
-void editStudent(int n, struct Student *list) {
-    int id;
-    printf("Student ID : ");
-    scanf("%d", &id);
-    int idx = findById(list, n, id);
-    if (idx == -1) { printf("ID not found.\n"); return; }
-    printf("New name : ");
-    scanf(" %49[^\n]", list[idx].fullName);
-    printf("New age  : ");
-    scanf("%d", &list[idx].age);
-    while (list[idx].age < 5 || list[idx].age > 100) {
-        printf("  ! Invalid age (5-100) : ");
-        scanf("%d", &list[idx].age);
+    // Shift all students after the deleted one to the left
+    for (int i = index; i < *count - 1; i++) {
+        list[i] = list[i+1];
     }
-    for (int i = 0; i < NUM_SUBJECTS; i++) {
-        printf("%-8s mark : ", subjects[i]);
-        scanf("%f", &list[idx].marks[i]);
-        while (list[idx].marks[i] < 0 || list[idx].marks[i] > 20) {
-            printf("  ! Invalid mark (0-20) : ");
-            scanf("%f", &list[idx].marks[i]);
-        }
-    }
-    list[idx].average = calcAverage(list[idx].marks);
-    printf("Student updated.\n");
-}
-
-/* ============================================================
-   ADD / DELETE
-   ============================================================ */
-void addStudent(int *n, struct Student **list) {
-    *list = (struct Student *)realloc(*list, sizeof(struct Student) * (*n + 1));
-    if (!*list) { printf("Memory error.\n"); return; }
-    printf("\n--- New Student ---\n");
-    inputStudent(&(*list)[*n], *list, *n);
-    (*n)++;
-    printf("Student added.\n");
-}
-
-void deleteById(int *n, struct Student *list) {
-    int id;
-    printf("ID to delete : ");
-    scanf("%d", &id);
-    int idx = findById(list, *n, id);
-    if (idx == -1) { printf("ID not found.\n"); return; }
-    for (int i = idx; i < *n - 1; i++)
-        list[i] = list[i + 1];
-    (*n)--;
+    
+    (*count)--;
     printf("Student deleted.\n");
 }
 
-/* ============================================================
-   MENUS
-   ============================================================ */
-void menuSort(int n, struct Student *list) {
-    int c;
+/* --- MAIN MENU --- */
+void runMenu(int *count, struct Student list[]) {
     while (1) {
-        printf("\n");
-        separator();
-        printf("         SORT\n");
-        separator();
-        printf("  1. By ID\n");
-        printf("  2. By Name\n");
-        printf("  3. By Age\n");
-        printf("  4. By Average\n");
-        printf("  0. Back\n");
-        separator();
-        printf("Choice : ");
-        scanf("%d", &c);
-        if (c == 0) return;
-        switch (c) {
-            case 1: sortById(n, list);      break;
-            case 2: sortByName(n, list);    break;
-            case 3: sortByAge(n, list);     break;
-            case 4: sortByAverage(n, list); break;
-            default: printf("Invalid choice.\n");
+        printf("\n==================================\n");
+        printf("   STUDENT MANAGEMENT SYSTEM\n");
+        printf("==================================\n");
+        printf("1. Show All Students\n");
+        printf("2. Add New Student\n");
+        printf("3. Search by ID\n");
+        printf("4. Edit Marks\n");
+        printf("5. Delete Student\n");
+        printf("6. Sort (by Avg)\n");
+        printf("7. Statistics\n");
+        printf("8. Save to File\n");
+        printf("0. Exit\n");
+        printf("==================================\n");
+
+        int choice = getInt("Choice: ");
+
+        if (choice == 1) {
+            showAll(*count, list);
         }
-        pressEnter();
+        else if (choice == 2) {
+            if (*count < MAX_STUDENTS) {
+                printf("\n--- Add New Student ---\n");
+                addOneStudent(&list[*count], list, *count);
+                (*count)++;
+                printf("Student added!\n");
+            } else {
+                printf("List is full!\n");
+            }
+        }
+        else if (choice == 3) {
+            searchById(*count, list);
+        }
+        else if (choice == 4) {
+            editStudent(*count, list);
+        }
+        else if (choice == 5) {
+            deleteStudent(count, list);
+        }
+        else if (choice == 6) {
+            sortByAverage(*count, list);
+        }
+        else if (choice == 7) {
+            showStats(*count, list);
+        }
+        else if (choice == 8) {
+            saveToFile(list, *count);
+        }
+        else if (choice == 0) {
+            int save = getInt("Save before exit? (1=Yes, 0=No): ");
+            if (save == 1) saveToFile(list, *count);
+            printf("Goodbye!\n");
+            break;
+        }
+        else {
+            printf("Invalid choice.\n");
+        }
+        
+        if (choice != 0) waitEnter();
     }
 }
 
-void menuSearch(int n, struct Student *list) {
-    int c;
-    while (1) {
-        printf("\n");
-        separator();
-        printf("         SEARCH\n");
-        separator();
-        printf("  1. By ID\n");
-        printf("  2. By Name\n");
-        printf("  3. By Age\n");
-        printf("  0. Back\n");
-        separator();
-        printf("Choice : ");
-        scanf("%d", &c);
-        if (c == 0) return;
-        switch (c) {
-            case 1: searchById(n, list);   break;
-            case 2: searchByName(n, list); break;
-            case 3: searchByAge(n, list);  break;
-            default: printf("Invalid choice.\n");
-        }
-        pressEnter();
-    }
-}
-
-void menuFilter(int n, struct Student *list) {
-    int c;
-    while (1) {
-        printf("\n");
-        separator();
-        printf("         FILTER\n");
-        separator();
-        printf("  1. Adults  (>= 18)\n");
-        printf("  2. Minors  (<  18)\n");
-        printf("  3. Older than X\n");
-        printf("  0. Back\n");
-        separator();
-        printf("Choice : ");
-        scanf("%d", &c);
-        if (c == 0) return;
-        switch (c) {
-            case 1: showAdults(n, list);     break;
-            case 2: showMinors(n, list);     break;
-            case 3: showOlderThan(n, list);  break;
-            default: printf("Invalid choice.\n");
-        }
-        pressEnter();
-    }
-}
-
-void menuEdit(int n, struct Student *list) {
-    int c;
-    while (1) {
-        printf("\n");
-        separator();
-        printf("         EDIT\n");
-        separator();
-        printf("  1. Edit Age\n");
-        printf("  2. Edit Name\n");
-        printf("  3. Edit Marks\n");
-        printf("  4. Edit Full Student\n");
-        printf("  0. Back\n");
-        separator();
-        printf("Choice : ");
-        scanf("%d", &c);
-        if (c == 0) return;
-        switch (c) {
-            case 1: editAge(n, list);     break;
-            case 2: editName(n, list);    break;
-            case 3: editMarks(n, list);   break;
-            case 4: editStudent(n, list); break;
-            default: printf("Invalid choice.\n");
-        }
-        pressEnter();
-    }
-}
-
-void menuDisplay(int n, struct Student *list) {
-    int c;
-    while (1) {
-        printf("\n");
-        separator();
-        printf("         DISPLAY\n");
-        separator();
-        printf("  1. All students\n");
-        printf("  2. By entry order\n");
-        printf("  3. Statistics\n");
-        printf("  0. Back\n");
-        separator();
-        printf("Choice : ");
-        scanf("%d", &c);
-        if (c == 0) return;
-        switch (c) {
-            case 1: printAll(n, list);    break;
-            case 2: printByOrder(n, list);break;
-            case 3: printStats(n, list);  break;
-            default: printf("Invalid choice.\n");
-        }
-        pressEnter();
-    }
-}
-
-/* ============================================================
-   MAIN MENU
-   ============================================================ */
-void mainMenu(int *n, struct Student **list) {
-    int c;
-    while (1) {
-        printf("\n");
-        printf("==========================================\n");
-        printf("||       STUDENT MANAGEMENT            ||\n");
-        printf("==========================================\n");
-        printf("||  1. Sort                            ||\n");
-        printf("||  2. Search                          ||\n");
-        printf("||  3. Statistics                      ||\n");
-        printf("||  4. Filter                          ||\n");
-        printf("||  5. Edit                            ||\n");
-        printf("||  6. Add student                     ||\n");
-        printf("||  7. Delete student                  ||\n");
-        printf("||  8. Display                         ||\n");
-        printf("||  0. Exit                            ||\n");
-        printf("==========================================\n");
-        printf("Choice : ");
-        scanf("%d", &c);
-
-        switch (c) {
-            case 1: menuSort(*n, *list);                       break;
-            case 2: menuSearch(*n, *list);                     break;
-            case 3: printStats(*n, *list);   pressEnter();     break;
-            case 4: menuFilter(*n, *list);                     break;
-            case 5: menuEdit(*n, *list);                       break;
-            case 6: addStudent(n, list);     pressEnter();     break;
-            case 7: deleteById(n, *list);    pressEnter();     break;
-            case 8: menuDisplay(*n, *list);                    break;
-            case 0: printf("\nGoodbye!\n"); return;
-            default: printf("Invalid choice.\n"); pressEnter();
-        }
-    }
-}
-
-/* ============================================================
-   MAIN
-   ============================================================ */
 int main() {
-    int n;
-    askCount(&n);
+    struct Student list[MAX_STUDENTS];
+    int count = 0;
 
-    struct Student *list = (struct Student *)malloc(sizeof(struct Student) * n);
-    if (!list) {
-        printf("Memory allocation failed.\n");
-        return 1;
+    printf("=== WELCOME ===\n");
+    printf("1. Load from File\n");
+    printf("2. Start Empty (Manual Entry)\n");
+    int startChoice = getInt("Choice: ");
+
+    if (startChoice == 1) {
+        loadFromFile(list, &count);
     }
 
-    fillList(n, list);
-    mainMenu(&n, &list);
+    // Start the main program loop
+    runMenu(&count, list);
 
-    free(list);
     return 0;
 }
