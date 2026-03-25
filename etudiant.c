@@ -26,7 +26,7 @@ void pressEnter() {
     printf("\n[Press Enter to continue...]");
     char c;
     while ((c = getchar()) != '\n' && c != EOF);
-    getchar();
+    getchar();}
 float calcAverage(float marks[]) {
     float sum = 0;
     for (int i = 0; i < NUM_SUBJECTS; i++)
